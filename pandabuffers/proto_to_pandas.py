@@ -1,5 +1,6 @@
 import pandas as pd
 from google.protobuf.message import Message
+from google.protobuf.descriptor import FieldDescriptor
 
 from typing import Any, Sequence
 
@@ -41,7 +42,12 @@ def proto_normalize(list_of_protos: Sequence[Message]) -> pd.DataFrame:
     return df.set_index(df.index.rename("index"))
 
 
-def dicts_from_repeated_field(repeated_message, field, current_path, index_path):
+def dicts_from_repeated_field(
+    repeated_message: Sequence[Message],
+    field: FieldDescriptor,
+    current_path: str,
+    index_path: str,
+):
     proto_list = []
     for i, message in enumerate(repeated_message):
         if field.message_type:
@@ -54,13 +60,15 @@ def dicts_from_repeated_field(repeated_message, field, current_path, index_path)
     return proto_list
 
 
-def explode_repeated(repeated_message, path_to_repeated_field, index_path):
+def explode_repeated(
+    repeated_message: Sequence[Message], path_to_repeated_field: str, index_path: str
+):
     proto_list = []
     for i, message in enumerate(repeated_message):
-            m = explode_field(message, path_to_repeated_field, index_path)
-            for d in m:
-                d[index_path] = i
-            proto_list.extend(m)
+        m = explode_field(message, path_to_repeated_field, index_path)
+        for d in m:
+            d[index_path] = i
+        proto_list.extend(m)
     return proto_list
 
 
@@ -81,7 +89,6 @@ def explode_field(
         Returns:
             proto_list: A list of dictionaries of the given repeated field
     """
-    proto_list = []
     current_path, _, path_to_repeated_field = path_to_repeated_field.partition(".")
     index_path += "." + current_path
     nested_message = getattr(proto_message, current_path)
@@ -91,7 +98,7 @@ def explode_field(
             return dicts_from_repeated_field(
                 nested_message, field, current_path, index_path
             )
-        
+
         return explode_repeated(nested_message, path_to_repeated_field, index_path)
     elif field.message_type:
         return explode_field(nested_message, path_to_repeated_field, index_path)
@@ -104,11 +111,13 @@ def proto_explode(
     list_of_protos: Sequence[Message], path_to_repeated_field: str
 ) -> pd.DataFrame:
     """
-    Creates a pandas DataFrame from a list of protobuf messaged and a specified protobuf field.
+    Creates a pandas DataFrame from a list of protobuf messaged and a specified
+    protobuf field.
 
         Parameters:
             list_of_protos: A list of protobuf messages
-            path_to_repeated_field: a '.' separated path to the field to be turned into a DataFrame
+            path_to_repeated_field: a '.' separated path to the field to be turned
+                into a DataFrame
 
         Returns:
             df: Pandas DataFrame
